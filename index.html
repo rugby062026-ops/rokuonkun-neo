@@ -1,0 +1,305 @@
+<!--
+  @license
+  このソフトウェアは、MITライセンスのもとで公開されています。
+  This software is released under the MIT License.
+
+  Copyright (c) 2024 Masaaki Maeta
+
+  以下に定める条件に従い、本ソフトウェアおよび関連文書のファイル（以下「本ソフトウェア」）の複製を取得するすべての人に対し、本ソフトウェアを無制限に扱うことを無償で許可します。これには、本ソフトウェアの複製を使用、複写、変更、結合、掲載、頒布、サブライセンス、および/または販売する権利、および本ソフトウェアを提供する相手に同じことを許可する権利も無制限に含まれます。
+
+  上記の著作権表示および本許諾表示を、本ソフトウェアのすべての複製または重要な部分に記載するものとします。
+
+  本ソフトウェアは「現状のまま」で、明示であるか暗黙であるかを問わず、何らの保証もなく提供されます。ここでいう保証とは、商品性、特定の目的への適合性、および権利非侵害についての保証も含みますが、それに限定されるものではありません。 作者または著作権者は、契約行為、不法行為、またはそれ以外であろうと、本ソフトウェアに起因または関連し、あるいは本ソフトウェアの使用またはその他の扱いによって生じる一切の請求、損害、その他の義務について何らの責任も負わないものとします。
+
+  --- (English Original) ---
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+-->
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>音声録音アプリ (MP3対応)</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+    .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto;}
+    h1 { color: #007bff; text-align: center; }
+    .input-group { margin-bottom: 15px; }
+    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .input-group input[type="text"] {
+      width: calc(100% - 22px);
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007bff; color: white; border: none; padding: 10px 20px;
+      text-align: center; text-decoration: none; display: inline-block;
+      font-size: 16px; margin: 10px 5px; cursor: pointer; border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover { background-color: #0056b3; }
+    button:disabled { background-color: #cccccc; cursor: not-allowed; }
+    #status { margin-top: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px; text-align: center;}
+    #audioPlayback { width: 100%; margin-top: 15px; }
+    #downloadLink { display: block; margin-top: 10px; text-align: center; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>音声録音アプリ (MP3対応)</h1>
+
+    <div class="input-group">
+      <label for="prefixName">グループ名/ペア名 (ファイル名の先頭に付きます):</label>
+      <input type="text" id="prefixName" placeholder="例: TeamA, John_Jane">
+    </div>
+
+    <button id="recordButton">録音開始</button>
+    <button id="stopButton" disabled>停止</button>
+    <button id="saveButton" disabled>MP3でドライブに保存</button>
+
+    <div id="status">マイクへのアクセスを許可してください。</div>
+    <audio id="audioPlayback" controls></audio>
+    <a id="downloadLink" style="display:none;">エンコードされたMP3をダウンロード (デバッグ用)</a>
+  </div>
+
+  <script>
+    // ★★★ GAS Web App の URL をここに設定してください ★★★
+    const GAS_WEB_APP_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+
+    const recordButton = document.getElementById('recordButton');
+    const stopButton = document.getElementById('stopButton');
+    const saveButton = document.getElementById('saveButton');
+    const statusDisplay = document.getElementById('status');
+    const audioPlayback = document.getElementById('audioPlayback');
+    const downloadLink = document.getElementById('downloadLink');
+    const prefixNameInput = document.getElementById('prefixName');
+
+    let mediaRecorder;
+    let audioChunks = [];
+    let originalAudioBlob = null;
+    let stream = null;
+    let mp3BlobForDebug = null;
+
+    recordButton.onclick = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const options = { mimeType: 'audio/webm;codecs=opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.log(options.mimeType + ' is not supported, using default (likely audio/webm).');
+            delete options.mimeType;
+        }
+        mediaRecorder = new MediaRecorder(stream, options);
+        console.log('MediaRecorder MIME type:', mediaRecorder.mimeType);
+
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          originalAudioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+          console.log('Original Blob type:', originalAudioBlob.type, 'size:', originalAudioBlob.size);
+          const audioUrl = URL.createObjectURL(originalAudioBlob);
+          audioPlayback.src = audioUrl;
+          audioPlayback.hidden = false;
+
+          recordButton.disabled = false;
+          stopButton.disabled = true;
+          saveButton.disabled = false;
+          statusDisplay.textContent = '録音停止。再生またはMP3で保存が可能です。';
+          audioChunks = [];
+          downloadLink.style.display = 'none';
+          mp3BlobForDebug = null;
+        };
+
+        audioChunks = [];
+        mediaRecorder.start();
+        statusDisplay.textContent = '録音中...';
+        recordButton.disabled = true;
+        stopButton.disabled = false;
+        saveButton.disabled = true;
+        prefixNameInput.disabled = true;
+        audioPlayback.hidden = true;
+        audioPlayback.src = '';
+
+      } catch (err) {
+        console.error("マイクアクセスエラー:", err);
+        statusDisplay.textContent = 'エラー: マイクにアクセスできませんでした。ブラウザの設定を確認してください。';
+      }
+    };
+
+    stopButton.onclick = () => {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
+        }
+        prefixNameInput.disabled = false;
+      }
+    };
+
+    saveButton.onclick = async () => {
+      if (!originalAudioBlob) {
+        statusDisplay.textContent = '保存する録音データがありません。';
+        return;
+      }
+
+      statusDisplay.textContent = 'MP3にエンコード中... しばらくお待ちください。';
+      saveButton.disabled = true;
+      recordButton.disabled = true;
+      prefixNameInput.disabled = true;
+      downloadLink.style.display = 'none';
+
+      try {
+        const mp3Blob = await encodeToMp3(originalAudioBlob);
+        mp3BlobForDebug = mp3Blob;
+        console.log('Encoded MP3 Blob type:', mp3Blob.type, 'size:', mp3Blob.size);
+
+        const mp3Url = URL.createObjectURL(mp3Blob);
+        downloadLink.href = mp3Url;
+        const debugTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        let debugPrefix = prefixNameInput.value.trim();
+        if (!debugPrefix) {
+            debugPrefix = "unknown";
+        }
+        debugPrefix = debugPrefix.replace(/[\s\\\/:\*\?"<>\|]/g, '_');
+        downloadLink.download = `${debugPrefix}_debug_recording-${debugTimestamp}.mp3`;
+        downloadLink.style.display = 'block';
+        statusDisplay.textContent = 'エンコード完了。ドライブに保存中...';
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const audioDataUrl = reader.result;
+          console.log('Data URL for MP3 (first 100 chars):', audioDataUrl.substring(0,100));
+
+          let userPrefix = prefixNameInput.value.trim();
+          if (!userPrefix) {
+            userPrefix = "unknown";
+          }
+          userPrefix = userPrefix.replace(/[\s\\\/:\*\?"<>\|]/g, '_');
+
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const baseFileName = `${userPrefix}_recording-${timestamp}`;
+
+          try {
+            const response = await fetch(GAS_WEB_APP_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+              },
+              body: JSON.stringify({
+                action: 'saveAudioFile',
+                audioDataUrl: audioDataUrl,
+                baseFileName: baseFileName
+              })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+              statusDisplay.textContent = result.message;
+              saveButton.disabled = true;
+            } else {
+              statusDisplay.textContent = `保存失敗: ${result.message}`;
+              saveButton.disabled = false;
+              console.error('GAS Save Error:', result.message);
+            }
+          } catch (fetchError) {
+            statusDisplay.textContent = `サーバーエラー: ${fetchError.message}`;
+            console.error('Fetch Error:', fetchError);
+            saveButton.disabled = false;
+          }
+          recordButton.disabled = false;
+          prefixNameInput.disabled = false;
+        };
+        reader.readAsDataURL(mp3Blob);
+      } catch (error) {
+        console.error("MP3エンコードエラー:", error);
+        statusDisplay.textContent = `MP3エンコードエラー: ${error.message}.詳細はコンソールを確認してください。`;
+        saveButton.disabled = false;
+        recordButton.disabled = false;
+        prefixNameInput.disabled = false;
+      }
+    };
+
+    async function encodeToMp3(audioBlob) {
+        console.log("Starting MP3 encoding for blob type:", audioBlob.type, "size:", audioBlob.size);
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer).catch(e => {
+            console.error("decodeAudioData error:", e);
+            throw new Error("音声データのデコードに失敗しました。録音形式に問題がある可能性があります。 " + e.message);
+        });
+        const numChannels = audioBuffer.numberOfChannels;
+        const sampleRate = audioBuffer.sampleRate;
+        const kbps = 128;
+        console.log(`Audio properties: Channels: ${numChannels}, Sample Rate: ${sampleRate} Hz`);
+        const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, kbps);
+        const mp3Data = [];
+        const pcmData = [];
+        for (let i = 0; i < numChannels; i++) {
+            pcmData.push(audioBuffer.getChannelData(i));
+        }
+        const samplesLeft = new Int16Array(pcmData[0].length);
+        for (let i = 0; i < pcmData[0].length; i++) {
+            samplesLeft[i] = Math.max(-1, Math.min(1, pcmData[0][i])) * 32767;
+        }
+        let samplesRight = null;
+        if (numChannels > 1) {
+            samplesRight = new Int16Array(pcmData[1].length);
+            for (let i = 0; i < pcmData[1].length; i++) {
+                samplesRight[i] = Math.max(-1, Math.min(1, pcmData[1][i])) * 32767;
+            }
+        }
+        const blockSize = 1152;
+        let dataBuffer;
+        for (let i = 0; i < samplesLeft.length; i += blockSize) {
+            const leftChunk = samplesLeft.subarray(i, i + blockSize);
+            let rightChunk = null;
+            if (samplesRight) {
+                rightChunk = samplesRight.subarray(i, i + blockSize);
+            }
+            if (numChannels === 1) {
+                dataBuffer = mp3encoder.encodeBuffer(leftChunk);
+            } else {
+                dataBuffer = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+            }
+            if (dataBuffer.length > 0) {
+                mp3Data.push(dataBuffer);
+            }
+        }
+        dataBuffer = mp3encoder.flush();
+        if (dataBuffer.length > 0) {
+            mp3Data.push(dataBuffer);
+        }
+        console.log("MP3 encoding finished. MP3 data chunks:", mp3Data.length);
+        return new Blob(mp3Data, { type: 'audio/mpeg' });
+    }
+
+    // 初期状態
+    audioPlayback.hidden = true;
+    prefixNameInput.disabled = false;
+  </script>
+</body>
+</html>
