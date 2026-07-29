@@ -42,12 +42,11 @@
       --primary-dark: #a12810;
       --accent-yellow: #ffb703;
       --bg-color: #fdf8f5;
-      --card-bg: #ffffff;
+      --card-bg: rgba(255, 255, 255, 0.92);
       --text-main: #2b2d42;
       --text-sub: #6c757d;
       --disabled-bg: #e9ecef;
       --disabled-text: #adb5bd;
-      --success-green: #2a9d8f;
     }
 
     * {
@@ -55,25 +54,74 @@
       font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
+    /* 動きのある背景デザイン */
     body {
       margin: 0;
       padding: 20px 12px;
-      background-color: var(--bg-color);
-      color: var(--text-main);
       min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      color: var(--text-main);
+      position: relative;
+      overflow-x: hidden;
+      
+      /* グラデーションアニメーション */
+      background: linear-gradient(-45deg, #fdf8f5, #ffe8e2, #fff0ed, #fbf0ec);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* 背景に浮かぶアクセントサークル */
+    .bg-shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(50px);
+      z-index: 0;
+      opacity: 0.6;
+      animation: floatShape 20s infinite ease-in-out alternate;
+    }
+
+    .bg-shape-1 {
+      width: 280px;
+      height: 280px;
+      background: rgba(200, 57, 30, 0.25);
+      top: -50px;
+      left: -50px;
+    }
+
+    .bg-shape-2 {
+      width: 320px;
+      height: 320px;
+      background: rgba(255, 183, 3, 0.25);
+      bottom: -80px;
+      right: -50px;
+      animation-delay: -10s;
+    }
+
+    @keyframes floatShape {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(40px, 30px) scale(1.1); }
+      100% { transform: translate(-20px, 50px) scale(0.9); }
     }
 
     .app-card {
+      position: relative;
+      z-index: 1;
       background-color: var(--card-bg);
+      backdrop-filter: blur(10px);
       width: 100%;
       max-width: 480px;
       border-radius: 24px;
-      box-shadow: 0 12px 32px rgba(200, 57, 30, 0.12);
+      box-shadow: 0 16px 40px rgba(200, 57, 30, 0.15);
       overflow: hidden;
-      border: 2px solid rgba(200, 57, 30, 0.08);
+      border: 2px solid rgba(255, 255, 255, 0.8);
     }
 
     /* ヘッダーデザイン */
@@ -306,8 +354,9 @@
     /* 録音中のドット点滅 */
     .rec-dot {
       display: inline-block;
-      width: 10px;
+      width: 100px;
       height: 10px;
+      width: 10px;
       background-color: #ef4444;
       border-radius: 50%;
       margin-right: 6px;
@@ -327,6 +376,10 @@
 </head>
 <body>
 
+  <!-- 背景アニメーション用シェイプ -->
+  <div class="bg-shape bg-shape-1"></div>
+  <div class="bg-shape bg-shape-2"></div>
+
   <div class="app-card">
     <!-- ヘッダー -->
     <div class="app-header">
@@ -341,8 +394,8 @@
     <div class="app-body">
       <!-- グループ名入力エリア -->
       <div class="input-group">
-        <label for="prefixName">👥 グループ名 / 氏名1，氏名2...</label>
-        <input type="text" id="prefixName" placeholder="例: A班 / 田中，佐藤...">
+        <label for="prefixName">👥 グループ名 / ペア名 <span style="color: var(--primary-vermilion);">*必須</span></label>
+        <input type="text" id="prefixName" placeholder="例: A班, 1組グループ3">
       </div>
 
       <!-- タイマー & 波形表示エリア -->
@@ -361,7 +414,7 @@
 
       <!-- 操作ボタン -->
       <div class="button-grid">
-        <button id="recordButton" class="btn btn-record">
+        <button id="recordButton" class="btn btn-record" disabled>
           <span>🔴</span> 録音開始
         </button>
         <button id="stopButton" class="btn btn-stop" disabled>
@@ -374,7 +427,7 @@
 
       <!-- ステータス表示 -->
       <div id="status" class="status-badge">
-        マイクへのアクセスを許可して録音を開始してください。
+        グループ名を入力すると録音を開始できます。
       </div>
 
       <!-- オーディオ再生 & ダウンロードリンク -->
@@ -405,9 +458,28 @@
     let stream = null;
     let mp3BlobForDebug = null;
 
-    // タイマー管理用変数
+    // タイマー管理用
     let timerInterval = null;
     let startTime = 0;
+
+    // 録音中状態フラグ
+    let isRecording = false;
+
+    // 入力監視：グループ名が入力されているかチェック
+    prefixNameInput.addEventListener('input', checkInputValidation);
+
+    function checkInputValidation() {
+      // 録音中・保存中処理中でなければ入力の有無で録音ボタンを制御
+      if (!isRecording && saveButton.disabled !== false) {
+        const hasText = prefixNameInput.value.trim().length > 0;
+        recordButton.disabled = !hasText;
+        if (!hasText) {
+          statusDisplay.textContent = 'グループ名を入力すると録音を開始できます。';
+        } else {
+          statusDisplay.textContent = '準備完了！「録音開始」を押してください。';
+        }
+      }
+    }
 
     function startTimer() {
       startTime = Date.now();
@@ -429,6 +501,12 @@
     }
 
     recordButton.onclick = async () => {
+      // ダブルチェック：グループ名が未入力なら処理を中断
+      if (!prefixNameInput.value.trim()) {
+        statusDisplay.textContent = '⚠️ グループ名を入力してください。';
+        return;
+      }
+
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const options = { mimeType: 'audio/webm;codecs=opus' };
@@ -443,6 +521,7 @@
         };
 
         mediaRecorder.onstop = () => {
+          isRecording = false;
           originalAudioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
           const audioUrl = URL.createObjectURL(originalAudioBlob);
           audioPlayback.src = audioUrl;
@@ -462,8 +541,9 @@
 
         audioChunks = [];
         mediaRecorder.start();
+        isRecording = true;
         
-        statusDisplay.textContent = '録音中... グループで話してください。';
+        statusDisplay.textContent = '🎙️ 録音中... グループで話してください。';
         recordButton.disabled = true;
         stopButton.disabled = false;
         saveButton.disabled = true;
@@ -477,7 +557,7 @@
 
       } catch (err) {
         console.error("マイクアクセスエラー:", err);
-        statusDisplay.textContent = '⚠️ エラー: マイクにアクセスできませんでした。設定を確認してください。';
+        statusDisplay.textContent = '⚠️ エラー: マイクにアクセスできませんでした。ブラウザ設定を確認してください。';
       }
     };
 
@@ -560,16 +640,16 @@
             statusDisplay.textContent = `⚠️ サーバーエラー: ${fetchError.message}`;
             saveButton.disabled = false;
           }
-          recordButton.disabled = false;
           prefixNameInput.disabled = false;
+          checkInputValidation();
         };
         reader.readAsDataURL(mp3Blob);
       } catch (error) {
         console.error("MP3エンコードエラー:", error);
         statusDisplay.textContent = `⚠️ MP3エンコードエラー: ${error.message}`;
         saveButton.disabled = false;
-        recordButton.disabled = false;
         prefixNameInput.disabled = false;
+        checkInputValidation();
       }
     };
 
@@ -623,8 +703,9 @@
         return new Blob(mp3Data, { type: 'audio/mpeg' });
     }
 
-    // 初期設定
+    // 初期化チェック
     prefixNameInput.disabled = false;
+    checkInputValidation();
   </script>
 </body>
 </html>
