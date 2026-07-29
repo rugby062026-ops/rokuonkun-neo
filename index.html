@@ -5,14 +5,6 @@
 
   Copyright (c) 2024 Masaaki Maeta
 
-  以下に定める条件に従い、本ソフトウェアおよび関連文書のファイル（以下「本ソフトウェア」）の複製を取得するすべての人に対し、本ソフトウェアを無制限に扱うことを無償で許可します。これには、本ソフトウェアの複製を使用、複写、変更、結合、掲載、頒布、サブライセンス、および/または販売する権利、および本ソフトウェアを提供する相手に同じことを許可する権利も無制限に含まれます。
-
-  上記の著作権表示および本許諾表示を、本ソフトウェアのすべての複製または重要な部分に記載するものとします。
-
-  本ソフトウェアは「現状のまま」で、明示であるか暗黙であるかを問わず、何らの保証もなく提供されます。ここでいう保証とは、商品性、特定の目的への適合性、および権利非侵害についての保証も含みますが、それに限定されるものではありません。 作者または著作権者は、契約行為、不法行為、またはそれ以外であろうと、本ソフトウェアに起因または関連し、あるいは本ソフトウェアの使用またはその他の扱いによって生じる一切の請求、損害、その他の義務について何らの責任も負わないものとします。
-
-  --- (English Original) ---
-
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
@@ -36,51 +28,361 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>音声録音アプリ (MP3対応)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>録音くん - 福岡県立春日高等学校</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
+  
   <style>
-    body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-    .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto;}
-    h1 { color: #007bff; text-align: center; }
-    .input-group { margin-bottom: 15px; }
-    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .input-group input[type="text"] {
-      width: calc(100% - 22px);
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+    :root {
+      /* 春日高校 スクールカラー「朱の色」 */
+      --primary-vermilion: #c8391e;
+      --primary-light: #e04d30;
+      --primary-dark: #a12810;
+      --accent-yellow: #ffb703;
+      --bg-color: #fdf8f5;
+      --card-bg: #ffffff;
+      --text-main: #2b2d42;
+      --text-sub: #6c757d;
+      --disabled-bg: #e9ecef;
+      --disabled-text: #adb5bd;
+      --success-green: #2a9d8f;
+    }
+
+    * {
       box-sizing: border-box;
+      font-family: 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    button {
-      background-color: #007bff; color: white; border: none; padding: 10px 20px;
-      text-align: center; text-decoration: none; display: inline-block;
-      font-size: 16px; margin: 10px 5px; cursor: pointer; border-radius: 5px;
-      transition: background-color 0.3s ease;
+
+    body {
+      margin: 0;
+      padding: 20px 12px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    button:hover { background-color: #0056b3; }
-    button:disabled { background-color: #cccccc; cursor: not-allowed; }
-    #status { margin-top: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px; text-align: center;}
-    #audioPlayback { width: 100%; margin-top: 15px; }
-    #downloadLink { display: block; margin-top: 10px; text-align: center; }
+
+    .app-card {
+      background-color: var(--card-bg);
+      width: 100%;
+      max-width: 480px;
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(200, 57, 30, 0.12);
+      overflow: hidden;
+      border: 2px solid rgba(200, 57, 30, 0.08);
+    }
+
+    /* ヘッダーデザイン */
+    .app-header {
+      background: linear-gradient(135deg, var(--primary-vermilion), var(--primary-light));
+      color: white;
+      padding: 28px 20px 20px;
+      text-align: center;
+      position: relative;
+    }
+
+    .school-tag {
+      font-size: 12px;
+      font-weight: 700;
+      background-color: rgba(255, 255, 255, 0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .app-title {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .app-subtitle {
+      font-size: 13px;
+      margin-top: 6px;
+      opacity: 0.9;
+    }
+
+    /* メインコンテンツ */
+    .app-body {
+      padding: 24px 20px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: var(--text-main);
+    }
+
+    .input-group input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.25s ease;
+      background-color: #fafafa;
+    }
+
+    .input-group input[type="text"]:focus {
+      border-color: var(--primary-vermilion);
+      background-color: #fff;
+      box-shadow: 0 0 0 4px rgba(200, 57, 30, 0.15);
+    }
+
+    /* 録音ビジュアルディスプレイ */
+    .visualizer-container {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 24px;
+      border: 1px dashed #cbd5e1;
+      position: relative;
+    }
+
+    .timer-display {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 8px;
+    }
+
+    /* 波形アニメーション */
+    .wave-bars {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      height: 28px;
+    }
+
+    .wave-bar {
+      width: 5px;
+      height: 8px;
+      background-color: #cbd5e1;
+      border-radius: 4px;
+      transition: height 0.2s ease, background-color 0.2s ease;
+    }
+
+    .recording .wave-bar {
+      background-color: var(--primary-vermilion);
+      animation: wave 1.2s infinite ease-in-out alternate;
+    }
+
+    .recording .wave-bar:nth-child(1) { animation-delay: 0.1s; }
+    .recording .wave-bar:nth-child(2) { animation-delay: 0.3s; }
+    .recording .wave-bar:nth-child(3) { animation-delay: 0.5s; }
+    .recording .wave-bar:nth-child(4) { animation-delay: 0.2s; }
+    .recording .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+    @keyframes wave {
+      0% { height: 8px; }
+      100% { height: 26px; }
+    }
+
+    /* 操作ボタンエリア */
+    .button-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      padding: 14px 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+
+    .btn-record {
+      background-color: var(--primary-vermilion);
+      color: white;
+      grid-column: span 1;
+    }
+
+    .btn-record:hover:not(:disabled) {
+      background-color: var(--primary-light);
+    }
+
+    .btn-stop {
+      background-color: #475569;
+      color: white;
+      grid-column: span 1;
+    }
+
+    .btn-stop:hover:not(:disabled) {
+      background-color: #334155;
+    }
+
+    .btn-save {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      grid-column: span 2;
+      font-size: 16px;
+      padding: 16px;
+    }
+
+    .btn-save:hover:not(:disabled) {
+      filter: brightness(1.05);
+    }
+
+    .btn:disabled {
+      background-color: var(--disabled-bg) !important;
+      color: var(--disabled-text) !important;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ステータス & オーディオプレイヤー */
+    .status-badge {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background-color: #f1f5f9;
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 16px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    audio {
+      width: 100%;
+      border-radius: 30px;
+      margin-top: 8px;
+      outline: none;
+    }
+
+    .debug-link {
+      display: block;
+      margin-top: 14px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-sub);
+      text-decoration: underline;
+    }
+
+    .footer-text {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-top: 16px;
+    }
+
+    /* 録音中のドット点滅 */
+    .rec-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background-color: #ef4444;
+      border-radius: 50%;
+      margin-right: 6px;
+      opacity: 0;
+    }
+
+    .recording .rec-dot {
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>音声録音アプリ (MP3対応)</h1>
 
-    <div class="input-group">
-      <label for="prefixName">グループ名/ペア名 (ファイル名の先頭に付きます):</label>
-      <input type="text" id="prefixName" placeholder="例: TeamA, John_Jane">
+  <div class="app-card">
+    <!-- ヘッダー -->
+    <div class="app-header">
+      <span class="school-tag">福岡県立春日高等学校</span>
+      <h1 class="app-title">
+        <span>🎙️</span> 録音くん
+      </h1>
+      <div class="app-subtitle">グループ活動・話し合い記録ツール</div>
     </div>
 
-    <button id="recordButton">録音開始</button>
-    <button id="stopButton" disabled>停止</button>
-    <button id="saveButton" disabled>MP3でドライブに保存</button>
+    <!-- メインボディ -->
+    <div class="app-body">
+      <!-- グループ名入力エリア -->
+      <div class="input-group">
+        <label for="prefixName">👥 グループ名 / ペア名</label>
+        <input type="text" id="prefixName" placeholder="例: A班, 1組グループ3">
+      </div>
 
-    <div id="status">マイクへのアクセスを許可してください。</div>
-    <audio id="audioPlayback" controls></audio>
-    <a id="downloadLink" style="display:none;">エンコードされたMP3をダウンロード (デバッグ用)</a>
+      <!-- タイマー & 波形表示エリア -->
+      <div class="visualizer-container" id="visualizer">
+        <div class="timer-display" id="timerDisplay">
+          <span class="rec-dot"></span><span id="timeText">00:00</span>
+        </div>
+        <div class="wave-bars">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+      </div>
+
+      <!-- 操作ボタン -->
+      <div class="button-grid">
+        <button id="recordButton" class="btn btn-record">
+          <span>🔴</span> 録音開始
+        </button>
+        <button id="stopButton" class="btn btn-stop" disabled>
+          <span>⏹️</span> 停止
+        </button>
+        <button id="saveButton" class="btn btn-save" disabled>
+          <span>☁️</span> Googleドライブに保存
+        </button>
+      </div>
+
+      <!-- ステータス表示 -->
+      <div id="status" class="status-badge">
+        マイクへのアクセスを許可して録音を開始してください。
+      </div>
+
+      <!-- オーディオ再生 & ダウンロードリンク -->
+      <audio id="audioPlayback" controls style="display: none;"></audio>
+      <a id="downloadLink" class="debug-link" style="display:none;">予備ダウンロード (デバッグ用)</a>
+
+      <div class="footer-text">Kasuga High School - Group Work Recorder</div>
+    </div>
   </div>
 
   <script>
@@ -94,6 +396,8 @@
     const audioPlayback = document.getElementById('audioPlayback');
     const downloadLink = document.getElementById('downloadLink');
     const prefixNameInput = document.getElementById('prefixName');
+    const visualizer = document.getElementById('visualizer');
+    const timeText = document.getElementById('timeText');
 
     let mediaRecorder;
     let audioChunks = [];
@@ -101,16 +405,38 @@
     let stream = null;
     let mp3BlobForDebug = null;
 
+    // タイマー管理用変数
+    let timerInterval = null;
+    let startTime = 0;
+
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+        const mins = String(Math.floor(elapsedTime / 60)).padStart(2, '0');
+        const secs = String(elapsedTime % 60).padStart(2, '0');
+        timeText.textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      timeText.textContent = '00:00';
+    }
+
     recordButton.onclick = async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const options = { mimeType: 'audio/webm;codecs=opus' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            console.log(options.mimeType + ' is not supported, using default (likely audio/webm).');
+            console.log(options.mimeType + ' is not supported, using default.');
             delete options.mimeType;
         }
         mediaRecorder = new MediaRecorder(stream, options);
-        console.log('MediaRecorder MIME type:', mediaRecorder.mimeType);
 
         mediaRecorder.ondataavailable = event => {
           audioChunks.push(event.data);
@@ -118,33 +444,40 @@
 
         mediaRecorder.onstop = () => {
           originalAudioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-          console.log('Original Blob type:', originalAudioBlob.type, 'size:', originalAudioBlob.size);
           const audioUrl = URL.createObjectURL(originalAudioBlob);
           audioPlayback.src = audioUrl;
-          audioPlayback.hidden = false;
+          audioPlayback.style.display = 'block';
 
           recordButton.disabled = false;
           stopButton.disabled = true;
           saveButton.disabled = false;
-          statusDisplay.textContent = '録音停止。再生またはMP3で保存が可能です。';
+          statusDisplay.textContent = '録音停止。再生して確認するか、ドライブへ保存してください。';
           audioChunks = [];
           downloadLink.style.display = 'none';
           mp3BlobForDebug = null;
+          
+          visualizer.classList.remove('recording');
+          stopTimer();
         };
 
         audioChunks = [];
         mediaRecorder.start();
-        statusDisplay.textContent = '録音中...';
+        
+        statusDisplay.textContent = '録音中... グループで話してください。';
         recordButton.disabled = true;
         stopButton.disabled = false;
         saveButton.disabled = true;
         prefixNameInput.disabled = true;
-        audioPlayback.hidden = true;
+        audioPlayback.style.display = 'none';
         audioPlayback.src = '';
+
+        visualizer.classList.add('recording');
+        resetTimer();
+        startTimer();
 
       } catch (err) {
         console.error("マイクアクセスエラー:", err);
-        statusDisplay.textContent = 'エラー: マイクにアクセスできませんでした。ブラウザの設定を確認してください。';
+        statusDisplay.textContent = '⚠️ エラー: マイクにアクセスできませんでした。設定を確認してください。';
       }
     };
 
@@ -165,7 +498,7 @@
         return;
       }
 
-      statusDisplay.textContent = 'MP3にエンコード中... しばらくお待ちください。';
+      statusDisplay.textContent = '⏳ MP3にエンコード中... しばらくお待ちください。';
       saveButton.disabled = true;
       recordButton.disabled = true;
       prefixNameInput.disabled = true;
@@ -174,7 +507,6 @@
       try {
         const mp3Blob = await encodeToMp3(originalAudioBlob);
         mp3BlobForDebug = mp3Blob;
-        console.log('Encoded MP3 Blob type:', mp3Blob.type, 'size:', mp3Blob.size);
 
         const mp3Url = URL.createObjectURL(mp3Blob);
         downloadLink.href = mp3Url;
@@ -186,12 +518,12 @@
         debugPrefix = debugPrefix.replace(/[\s\\\/:\*\?"<>\|]/g, '_');
         downloadLink.download = `${debugPrefix}_debug_recording-${debugTimestamp}.mp3`;
         downloadLink.style.display = 'block';
-        statusDisplay.textContent = 'エンコード完了。ドライブに保存中...';
+        
+        statusDisplay.textContent = '☁️ エンコード完了。Googleドライブに送信中...';
 
         const reader = new FileReader();
         reader.onloadend = async () => {
           const audioDataUrl = reader.result;
-          console.log('Data URL for MP3 (first 100 chars):', audioDataUrl.substring(0,100));
 
           let userPrefix = prefixNameInput.value.trim();
           if (!userPrefix) {
@@ -218,16 +550,14 @@
             const result = await response.json();
 
             if (result.success) {
-              statusDisplay.textContent = result.message;
+              statusDisplay.textContent = `✅ ${result.message}`;
               saveButton.disabled = true;
             } else {
-              statusDisplay.textContent = `保存失敗: ${result.message}`;
+              statusDisplay.textContent = `❌ 保存失敗: ${result.message}`;
               saveButton.disabled = false;
-              console.error('GAS Save Error:', result.message);
             }
           } catch (fetchError) {
-            statusDisplay.textContent = `サーバーエラー: ${fetchError.message}`;
-            console.error('Fetch Error:', fetchError);
+            statusDisplay.textContent = `⚠️ サーバーエラー: ${fetchError.message}`;
             saveButton.disabled = false;
           }
           recordButton.disabled = false;
@@ -236,7 +566,7 @@
         reader.readAsDataURL(mp3Blob);
       } catch (error) {
         console.error("MP3エンコードエラー:", error);
-        statusDisplay.textContent = `MP3エンコードエラー: ${error.message}.詳細はコンソールを確認してください。`;
+        statusDisplay.textContent = `⚠️ MP3エンコードエラー: ${error.message}`;
         saveButton.disabled = false;
         recordButton.disabled = false;
         prefixNameInput.disabled = false;
@@ -244,17 +574,14 @@
     };
 
     async function encodeToMp3(audioBlob) {
-        console.log("Starting MP3 encoding for blob type:", audioBlob.type, "size:", audioBlob.size);
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const arrayBuffer = await audioBlob.arrayBuffer();
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer).catch(e => {
-            console.error("decodeAudioData error:", e);
-            throw new Error("音声データのデコードに失敗しました。録音形式に問題がある可能性があります。 " + e.message);
+            throw new Error("音声データのデコードに失敗しました。" + e.message);
         });
         const numChannels = audioBuffer.numberOfChannels;
         const sampleRate = audioBuffer.sampleRate;
         const kbps = 128;
-        console.log(`Audio properties: Channels: ${numChannels}, Sample Rate: ${sampleRate} Hz`);
         const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, kbps);
         const mp3Data = [];
         const pcmData = [];
@@ -293,12 +620,10 @@
         if (dataBuffer.length > 0) {
             mp3Data.push(dataBuffer);
         }
-        console.log("MP3 encoding finished. MP3 data chunks:", mp3Data.length);
         return new Blob(mp3Data, { type: 'audio/mpeg' });
     }
 
-    // 初期状態
-    audioPlayback.hidden = true;
+    // 初期設定
     prefixNameInput.disabled = false;
   </script>
 </body>
